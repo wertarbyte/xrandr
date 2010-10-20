@@ -144,6 +144,7 @@ usage(void)
     fprintf(stderr, "  --rmmode <name>\n");
     fprintf(stderr, "  --addmode <output> <name>\n");
     fprintf(stderr, "  --delmode <output> <name>\n");
+    fprintf(stderr, "  --dump\n");
 
     exit(1);
     /*NOTREACHED*/
@@ -2169,6 +2170,7 @@ main (int argc, char **argv)
     Bool	modeit = False;
     Bool	propit = False;
     Bool	query_1 = False;
+    Bool	dump = False;
     int		major, minor;
     Bool	current = False;
 
@@ -2258,6 +2260,10 @@ main (int argc, char **argv)
 	}
 	if (!strcmp ("-q", argv[i]) || !strcmp ("--query", argv[i])) {
 	    query = True;
+	    continue;
+	}
+	if (!strcmp ("--dump", argv[i])) {
+	    dump = True;
 	    continue;
 	}
 	if (!strcmp ("-o", argv[i]) || !strcmp ("--orientation", argv[i])) {
@@ -2925,11 +2931,13 @@ main (int argc, char **argv)
 	get_screen (current);
 	get_crtcs ();
 	get_outputs ();
-
-        printf ("Screen %d: minimum %d x %d, current %d x %d, maximum %d x %d\n",
+	if (!dump)
+	{
+	    printf ("Screen %d: minimum %d x %d, current %d x %d, maximum %d x %d\n",
 		screen, minWidth, minHeight,
 		DisplayWidth (dpy, screen), DisplayHeight(dpy, screen),
 		maxWidth, maxHeight);
+	}
 
 	for (output = outputs; output; output = output->next)
 	{
@@ -2942,28 +2950,38 @@ main (int argc, char **argv)
 	    Bool	    *mode_shown;
 	    Rotation	    rotations = output_rotations (output);
 
-	    printf ("%s %s", output_info->name, connection[output_info->connection]);
+	    printf ( dump ? "output %s\n" : "%s %s", output_info->name, connection[output_info->connection]);
+	    if (dump && output_is_primary(output))
+	    {
+		printf( "primary\n" );
+	    }
+
 	    if (mode)
 	    {
 		if (crtc_info) {
-		    printf (" %dx%d+%d+%d",
+		    printf ( dump ? "mode %dx%d\npos %dx%d\n" : " %dx%d+%d+%d",
 			    crtc_info->width, crtc_info->height,
 			    crtc_info->x, crtc_info->y);
 		} else {
-		    printf (" %dx%d+%d+%d",
-			    mode->width, mode->height, output->x, output->y);
+		    printf ( dump ? "mode %dx%d\npos %dx%d\n" : " %dx%d+%d+%d",
+			mode->width, mode->height, output->x, output->y);
 		}
-		if (verbose)
+		if (verbose && !dump)
 		    printf (" (0x%x)", (int)mode->id);
-		if (output->rotation != RR_Rotate_0 || verbose)
+		if (output->rotation != RR_Rotate_0 || verbose || dump)
 		{
-		    printf (" %s", 
+		    printf ( dump ? "rotate %s\n" : " %s",
 			    rotation_name (output->rotation));
 		    if (output->rotation & (RR_Reflect_X|RR_Reflect_Y))
-			printf (" %s", reflection_name (output->rotation));
+			printf ( dump ? "reflect %s\n" : " %s", reflection_name (output->rotation));
+		}
+	    } else {
+		if (dump)
+		{
+		    printf( "off\n" );
 		}
 	    }
-	    if (rotations != RR_Rotate_0 || verbose)
+	    if (!dump && (rotations != RR_Rotate_0 || verbose))
 	    {
 		Bool    first = True;
 		printf (" (");
@@ -2986,7 +3004,7 @@ main (int argc, char **argv)
 		printf (")");
 	    }
 
-	    if (mode)
+	    if (!dump && mode)
 	    {
 		printf (" %dmm x %dmm",
 			(int)output_info->mm_width, (int)output_info->mm_height);
@@ -2995,7 +3013,7 @@ main (int argc, char **argv)
 	    if (crtc && crtc->panning_info && crtc->panning_info->width > 0)
 	    {
 		XRRPanning *pan = crtc->panning_info;
-		printf (" panning %dx%d+%d+%d",
+		printf ( dump ? "panning %dx%d+%d+%d" : " panning %dx%d+%d+%d",
 			pan->width, pan->height, pan->left, pan->top);
 		if ((pan->track_width    != 0 &&
 		     (pan->track_left    != pan->left		||
@@ -3007,12 +3025,19 @@ main (int argc, char **argv)
 		      pan->track_height  != pan->height		||
 		      pan->border_top    != 0			||
 		      pan->border_bottom != 0)))
-		    printf (" tracking %dx%d+%d+%d border %d/%d/%d/%d",
+		    printf ( dump ? "/%dx%d+%d+%d/%d/%d/%d/%d\n" : "tracking %dx%d+%d+%d border %d/%d/%d/%d",
 			    pan->track_width,  pan->track_height,
 			    pan->track_left,   pan->track_top,
 			    pan->border_left,  pan->border_top,
 			    pan->border_right, pan->border_bottom);
 	    }
+
+	    /* If we are dumping our configuration, we end the loop here */
+	    if (dump)
+	    {
+		continue;
+	    }
+
 	    printf ("\n");
 
 	    if (verbose)
@@ -3227,7 +3252,7 @@ main (int argc, char **argv)
 	{
 	    XRRModeInfo	*mode = &res->modes[m];
 
-	    if (!(mode->modeFlags & ModeShown))
+	    if (!(mode->modeFlags & ModeShown) && !dump)
 	    {
 		printf ("  %s (0x%x) %6.1fMHz\n",
 			mode->name, (int)mode->id,

@@ -26,6 +26,7 @@ xrandr \- primitive command line interface to RandR extension
 .B "xrandr"
 [\-help]  [\-display \fIdisplay\fP]
 [\-q] [\-v]
+[\-\-dump]
 [\-\-verbose]
 [\-\-dryrun]
 [\-\-screen \fIsnum\fP]
@@ -110,6 +111,8 @@ reported while executing the configuration changes.
 .IP "\-q, \-\-query"
 When this option is present, or when no configuration changes are requested,
 xrandr will display the current state of the system.
+.IP "\-\-dump"
+Dump the current display configuration in an easily parsable format.
 .IP "\-\-dryrun"
 Performs all the actions specified except that no changes are made.
 .IP "\-\-nograb"
